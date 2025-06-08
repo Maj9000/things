@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>أداة فحص</title>
+  <style>
+    body {
+      font-family: Arial;
+      direction: rtl;
+      padding: 20px;
+      background: #f8f8f8;
+    }
+    input[type=text], input[type=number] {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px 5px 0 0;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    .available {
+      color: green;
+    }
+    .taken {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+
+<h2>أداة فحص</h2>
+
+<p>أدخل الحروف لتوليد الاحتمالات:</p>
+<input type="text" id="charsInput" placeholder="مثلاً: abc123" />
+
+<p>عدد أحرف اليوزر:</p>
+<input type="number" id="lengthInput" min="1" placeholder="مثلاً: 3" />
+
+<button onclick="generateAndCheck()">عرض النتائج</button>
+<button id="copyAvailableBtn">نسخ المتاح فقط</button>
+
+<div class="result" id="resultBox"></div>
+
+<script>
+  function combinations(chars, length) {
+    if (length === 1) return chars.split('');
+    const result = [];
+    const smaller = combinations(chars, length - 1);
+    for (let ch of chars) {
+      for (let sm of smaller) {
+        result.push(ch + sm);
+      }
+    }
+    return result;
+  }
+
+  async function generateAndCheck() {
+    const chars = document.getElementById("charsInput").value.trim();
+    const length = parseInt(document.getElementById("lengthInput").value);
+    const resultBox = document.getElementById("resultBox");
+
+    if (!chars) {
+      alert("يرجى إدخال حروف.");
+      return;
+    }
+
+    if (!length || length < 1) {
+      alert("يرجى تحديد عدد أحرف اليوزر.");
+      return;
+    }
+
+    resultBox.innerHTML = "جاري توليد الاحتمالات وفحصها...";
+    const usernames = combinations(chars, length);
+    let results = [];
+
+    for (let username of usernames) {
+      try {
+        const res = await fetch(`http://8.213.33.135/api/username-exists?username=${encodeURIComponent(username)}`);
+        const data = await res.json();
+
+        if (data.exists === true) {
+          results.push(`<div class="taken">${username}</div>`);
+        } else {
+          results.push(`<div class="available">${username}</div>`);
+        }
+      } catch {
+        results.push(`<div class="taken">${username} (خطأ في الاتصال)</div>`);
+      }
+    }
+
+    resultBox.innerHTML = results.join("");
+  }
+
+  document.getElementById('copyAvailableBtn').addEventListener('click', () => {
+    const availableUsers = Array.from(document.querySelectorAll('.available'))
+                                .map(el => el.textContent.trim());
+    if (availableUsers.length === 0) {
+      alert('لا يوجد يوزرات متاحة.');
+      return;
+    }
+    navigator.clipboard.writeText(availableUsers.join('\n')).then(() => {
+      alert('تم نسخ اليوزرات المتاحة.');
+    }).catch(() => {
+      alert('فشل النسخ.');
+    });
+  });
+</script>
+
+</body>
+</html>
